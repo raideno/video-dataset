@@ -1,0 +1,38 @@
+name: publish-beta
+
+on:
+  push:
+    branches:
+      - development
+
+permissions:
+  contents: write
+
+jobs:
+  pypi-publish-beta:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout-code
+        uses: actions/checkout@v4
+
+      - name: setup-python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: install-poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          virtualenvs-path: .venv
+          installer-parallel: true
+
+      - name: install-dependencies
+        run: poetry install --no-interaction
+
+      - name: publish-to-pypi-beta
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
+        run: poetry publish --build --username __token__ --password $POETRY_PYPI_TOKEN_PYPI --repository testpypi
