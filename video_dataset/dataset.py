@@ -82,7 +82,9 @@ class VideoDataset():
         video_extension: str = 'mp4',
         annotations_extension: str = 'csv',
         # --- --- ---
-        video_shape: Tuple[int, int, int, int] = DEFAULT_VIDEO_SHAPE
+        video_shape: Tuple[int, int, int, int] = DEFAULT_VIDEO_SHAPE,
+        # --- --- ---
+        step: int = None
     ):
         """
         Note: the videos in the videos_dir and the annotations in the annotations_dir must have the same name, they can have different extensions of course.
@@ -107,6 +109,8 @@ class VideoDataset():
         self.ids_file = ids_file
         
         self.video_shape = video_shape
+        
+        self.step = step
         
         self.__params_check()
         
@@ -196,8 +200,8 @@ class VideoDataset():
         starting_frame = starting_frame_number_in_video
         ending_frame = starting_frame_number_in_video + self.segment_size
         
-        frames= self.videos[video_index][starting_frame:ending_frame]
-        annotations = self.annotations[video_index][starting_frame:ending_frame]
+        frames= self.videos[video_index][starting_frame:ending_frame:self.step]
+        annotations = self.annotations[video_index][starting_frame:ending_frame:self.step]
         
         # NOTE: we expect the video_processor to return a numpy array of the frames in the DEFAULT_VIDEO_SHAPE format.
         frames = frames.transpose(self.video_shape)
