@@ -1,6 +1,6 @@
 [project]
 name = "video-dataset"
-version = "0.2.3"
+version = "0.2.4"
 description = "A pytorch compatible video dataset that is fully customizable."
 authors = [
     {name = "raideno56",email = "nadirkichou@hotmail.fr"}
@@ -19,7 +19,7 @@ dependencies = [
     "pandas (>=2.2.3,<3.0.0)",
     "pillow (>=11.1.0,<12.0.0)",
     "opencv-python (>=4.11.0.86,<5.0.0.0)",
-    "numpy (>=2.2.3,<3.0.0)"
+    "numpy (>=1.9.0)"
 ]
 packages = [
     {include = "video_dataset", from = "."}
