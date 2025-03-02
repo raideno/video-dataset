@@ -1,1 +1,2 @@
 from video_dataset.dataset import VideoDataset
+from video_dataset.dataset import VideoShapeComponents, DEFAULT_VIDEO_SHAPE

@@ -4,14 +4,14 @@ import itertools
 
 import numpy as np
 
-from enum import Enum
+from enum import IntEnum
 from typing import Type, Any, Tuple
 
 from video_dataset.video import Video
 from video_dataset.utils import better_listdir
 from video_dataset.annotations import Annotations
 
-class VideoShapeComponents(Enum):
+class VideoShapeComponents(IntEnum):
     TIME = 0
     HEIGHT = 1
     WIDTH = 2
