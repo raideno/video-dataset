@@ -1,15 +1,15 @@
-name: publish
+name: run-tests
 
 on:
   push:
-    tags:
-      - "v*"
-
-permissions:
-  contents: write
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - "*"
 
 jobs:
-  pypi-publish:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -30,9 +30,7 @@ jobs:
           installer-parallel: true
 
       - name: install-dependencies
-        run: poetry install --no-interaction
+        run: poetry install
 
-      - name: publish-to-pypi
-        env:
-          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
-        run: poetry publish --build --username __token__ --password $POETRY_PYPI_TOKEN_PYPI
+      - name: run-tests
+        run: poetry run pytest

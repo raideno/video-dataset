@@ -35,7 +35,7 @@ class AnnotationsFromFrameLevelTxtFileAnnotations(Annotations):
         return self.id
     
     def __len__(self):
-        with open(self.path, 'r') as f:
+        with open(os.path.join(self.annotations_dir_path, f"{self.id}.txt"), 'r') as f:
             lines = f.readlines()
             
         return len(lines)
@@ -52,7 +52,7 @@ class AnnotationsFromFrameLevelTxtFileAnnotations(Annotations):
             raise TypeError("Index must be an integer or slice")
         
     def __get_annotation(self, index: int):
-        with open(os.path.join(self.annotations_dir_path, self.id), 'r') as f:
+        with open(os.path.join(self.annotations_dir_path, f"{self.id}.txt"), 'r') as f:
             lines = f.readlines()
         
         if index >= len(lines):
@@ -62,7 +62,7 @@ class AnnotationsFromFrameLevelTxtFileAnnotations(Annotations):
         return lines[index]
         
     def __get_annotations(self, start: int, stop: int, step: int):
-        with open(os.path.join(self.annotations_dir_path, self.id), 'r') as f:
+        with open(os.path.join(self.annotations_dir_path, f"{self.id}.txt"), 'r') as f:
             lines = f.readlines()
             
         # each line is an annotation for a frame
