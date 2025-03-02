@@ -2,7 +2,7 @@ import os
 import cv2
 
 from PIL import Image
-from utils import better_listdir
+from video_dataset.utils import better_listdir
 from abc import ABC, ABCMeta, abstractmethod
 
 class Video(ABC):

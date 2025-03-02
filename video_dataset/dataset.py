@@ -63,7 +63,7 @@ class VideoDataset():
         video_processor_kwargs: dict[str, Any] = None,
         annotations_processor_kwargs: dict[str, Any] = None,
         # --- --- ---
-        ids: list[str] = None,
+        ids_file: list[str] = None,
         # --- --- ---
         frames_transform = None,
         annotations_transform = None,
@@ -81,7 +81,6 @@ class VideoDataset():
         self.segment_size = segment_size
         self.frames_transform = frames_transform
         self.annotations_transform = annotations_transform
-        self.ids = ids
         
         self.video_processor = video_processor
         self.annotations_processor = annotations_processor
@@ -96,8 +95,11 @@ class VideoDataset():
         
         self.__params_check()
         
-        if self.ids is None:
+        if ids_file is None:
             self.ids = list(map(lambda file_name: os.path.splitext(file_name)[0], better_listdir(self.videos_dir)))
+        else:
+            with open(self.ids_file, "r") as file:
+                self.ids = file.read().splitlines()
             
         self.__ids_check()
         
