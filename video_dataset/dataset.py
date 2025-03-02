@@ -49,6 +49,7 @@ class VideoDataset():
         - The class supports segmentation of videos into smaller frame chunks to optimize training.
         - Custom formats can be supported by implementing corresponding processors for videos and annotations.
     """
+    # TODO: refactor the class into using kwargs rather than params just like this
     def __init__(
         self,
         # --- --- ---
@@ -93,20 +94,23 @@ class VideoDataset():
         self.video_processor_kwargs = video_processor_kwargs or {}
         self.annotations_processor_kwargs = annotations_processor_kwargs or {}
         
+        self.ids_file = ids_file
+        
         self.__params_check()
         
-        if ids_file is None:
+        if self.ids_file is None:
             self.ids = list(map(lambda file_name: os.path.splitext(file_name)[0], better_listdir(self.videos_dir)))
         else:
             with open(self.ids_file, "r") as file:
                 self.ids = file.read().splitlines()
             
-        self.__ids_check()
+        # self.__ids_check()
         
         self.videos, self.annotations = self.__prepare_videos_and_annotations()
         
         self.__segment_size_check()
         
+    # TODO: it should check the params rather than the self.*
     def __params_check(self):
         if not os.path.exists(self.annotations_dir):
             raise ValueError(f"Annotations directory {self.annotations_dir} does not exist.")
@@ -114,7 +118,17 @@ class VideoDataset():
         if not os.path.exists(self.videos_dir):
             raise ValueError(f"Videos directory {self.videos_dir} does not exist.")
         
-        # TODO: check that videos and annotations processors correctly implement the Video and Annotations classes
+        if not isinstance(self.video_processor, type):
+            raise ValueError("Video processor must be a class.")
+        
+        if not isinstance(self.annotations_processor, type):
+            raise ValueError("Annotations processor must be a class.")
+        
+        if not issubclass(self.video_processor, Video):
+            raise ValueError("Video processor must inherit from the Video class.")
+        
+        if not issubclass(self.annotations_processor, Annotations):
+            raise ValueError("Annotations processor must inherit from the Annotations class.")
         
         if not isinstance(self.segment_size, int):
             raise ValueError("Segment size must be an integer.")
@@ -128,7 +142,7 @@ class VideoDataset():
         if self.annotations_transform is not None and not callable(self.annotations_transform):
             raise ValueError("Annotations transform must be a callable function.")
         
-        if self.ids is not None and not isinstance(self.ids, list):
+        if self.ids_file is not None and not isinstance(self.ids_file, list):
             raise ValueError("IDs must be a list.")
         
         if not isinstance(self.verbose, bool):
@@ -136,16 +150,8 @@ class VideoDataset():
         
     def __prepare_videos_and_annotations(self):
         return \
-            list(map(lambda id: self.video_processor(os.path.join(self.videos_dir, f"{id}.{self.video_extension}"), id, **self.video_processor_kwargs), self.ids)), \
-            list(map(lambda id: self.annotations_processor(os.path.join(self.annotations_dir, f"{id}.{self.annotations_extension}"), id, **self.annotations_processor_kwargs), self.ids))
-        
-    def __ids_check(self):
-        for id in self.ids:
-            if not os.path.exists(os.path.join(self.annotations_dir, f"{id}.{self.annotations_extension}")):
-                raise ValueError(f"Annotations file {id}.{self.annotations_extension} does not exist in the annotations directory.")
-            
-            if not os.path.exists(os.path.join(self.videos_dir, f"{id}.{self.video_extension}")):
-                raise ValueError(f"Video file {id}.{self.video_extension} does not exist in the videos directory.")
+            list(map(lambda id: self.video_processor(self.videos_dir, id, **self.video_processor_kwargs), self.ids)), \
+            list(map(lambda id: self.annotations_processor(self.annotations_dir, id, **self.annotations_processor_kwargs), self.ids))
         
     def __segment_size_check(self):
         for index, video in enumerate(self.videos):

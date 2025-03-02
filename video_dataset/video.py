@@ -9,11 +9,7 @@ class Video(ABC):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def __init__(self, path: str, id: str):
-        pass
-    
-    @abstractmethod
-    def get_path(self):
+    def __init__(self, videos_dir_path: str, id: str):
         pass
     
     @abstractmethod
@@ -33,20 +29,17 @@ class Video(ABC):
         pass
 
 class VideoFromVideoFramesDirectory(Video):
-    def __init__(self, path, id):
-        super().__init__(path, id)
+    def __init__(self, videos_dir_path, id):
+        super().__init__(videos_dir_path, id)
         
         self.id = id
-        self.path = path
+        self.videos_dir_path = videos_dir_path
     
-    def get_path(self):
-        return self.path
-        
     def get_id(self):
         return self.id
     
     def __len__(self):
-        return len(better_listdir(self.path))
+        return len(better_listdir(os.path.join(self.videos_dir_path, self.id)))
     
     def __getitem__(self, index: int | slice):
         if isinstance(index, int):
@@ -60,7 +53,7 @@ class VideoFromVideoFramesDirectory(Video):
             raise TypeError("Index must be an integer or slice")
         
     def __get_frame(self, index: int):
-        image_path = os.path.join(self.path, f"img_{index:05d}.jpg")
+        image_path = os.path.join(self.videos_dir_path, self.id, f"img_{index:05d}.jpg")
         
         return Image.open(image_path).convert("RGB")
     
@@ -73,23 +66,25 @@ class VideoFromVideoFramesDirectory(Video):
         
         return frames
     
+VIDEO_EXTENSION = "mp4"
+    
 class VideoFromVideoFile(Video):
-    def __init__(self, path, id):
-        super().__init__(path, id)
+    # TODO: it should be able to support multiple video extensions by providing a function for the video_extension or a sort of global video reader by providing * & thus be able to read anything.
+    # NOTE: when setting it to * be carful if two videos with the same name but different format are available
+    def __init__(self, videos_dir_path, id, video_extension = VIDEO_EXTENSION):
+        super().__init__(videos_dir_path, id)
         
         self.id = id
-        self.path = path
+        self.videos_dir_path = videos_dir_path
+        self.video_extension = video_extension
         self.cached_number_of_frames = self.__cache_number_of_frames()
-        
-    def get_path(self):
-        return self.path
         
     def get_id(self):
         return self.id
     
     def __cache_number_of_frames(self):
         """Opens video temporarily to get frame count."""
-        video = cv2.VideoCapture(self.path)
+        video = cv2.VideoCapture(os.path.join(self.videos_dir_path, f"{self.id}.{self.video_extension}"))
         num_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
         video.release()
         return num_frames
@@ -110,7 +105,7 @@ class VideoFromVideoFile(Video):
 
     def __get_frame(self, index: int):
         """Opens video, retrieves a single frame, and immediately closes it."""
-        with cv2.VideoCapture(self.path) as video:
+        with cv2.VideoCapture(self.videos_dir_path) as video:
             video.set(cv2.CAP_PROP_POS_FRAMES, index)
             ret, frame = video.read()
         
@@ -123,7 +118,7 @@ class VideoFromVideoFile(Video):
         """Reads multiple frames in a single open-close cycle."""
         frames = []
         
-        with cv2.VideoCapture(self.path) as video:
+        with cv2.VideoCapture(self.videos_dir_path) as video:
             video.set(cv2.CAP_PROP_POS_FRAMES, start)
             
             for i in range(start, stop, step):

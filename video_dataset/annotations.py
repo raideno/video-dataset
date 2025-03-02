@@ -1,18 +1,16 @@
+import os
+
 from abc import ABC, ABCMeta, abstractmethod
 
 class Annotations(ABC):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def __init__(self, path: str, id: str):
+    def __init__(self, annotations_dir_path: str, id: str):
         pass
     
     @abstractmethod
     def get_id(self):
-        pass
-    
-    @abstractmethod
-    def get_path(self):
         pass
     
     @abstractmethod
@@ -27,15 +25,12 @@ PREFILL_VALUE = "nothing"
 MAX_OVERFLOW_VALUE = 100
     
 class AnnotationsFromFrameLevelTxtFileAnnotations(Annotations):
-    def __init__(self, path, id, prefill_value = PREFILL_VALUE, max_overflow_value = MAX_OVERFLOW_VALUE):
-        self.path = path
+    def __init__(self, annotations_dir_path, id, prefill_value = PREFILL_VALUE, max_overflow_value = MAX_OVERFLOW_VALUE):
+        self.annotations_dir_path = annotations_dir_path
         self.id = id
         self.prefill_value = prefill_value
         self.max_overflow_value = max_overflow_value
         
-    def get_path(self):
-        return self.path
-
     def get_id(self):
         return self.id
     
@@ -57,7 +52,7 @@ class AnnotationsFromFrameLevelTxtFileAnnotations(Annotations):
             raise TypeError("Index must be an integer or slice")
         
     def __get_annotation(self, index: int):
-        with open(self.path, 'r') as f:
+        with open(os.path.join(self.annotations_dir_path, self.id), 'r') as f:
             lines = f.readlines()
         
         if index >= len(lines):
@@ -67,7 +62,7 @@ class AnnotationsFromFrameLevelTxtFileAnnotations(Annotations):
         return lines[index]
         
     def __get_annotations(self, start: int, stop: int, step: int):
-        with open(self.path, 'r') as f:
+        with open(os.path.join(self.annotations_dir_path, self.id), 'r') as f:
             lines = f.readlines()
             
         # each line is an annotation for a frame
