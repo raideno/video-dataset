@@ -32,6 +32,12 @@ jobs:
       - name: install-dependencies
         run: poetry install --no-interaction
 
+      # - name: set-version-from-tag
+      #   run: |
+      #     TAG_NAME="${GITHUB_REF#refs/tags/}"
+      #     VERSION="${TAG_NAME#v}"
+      #     poetry version "$VERSION"
+
       - name: publish-to-pypi
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
