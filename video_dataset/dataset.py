@@ -2,12 +2,23 @@ import os
 import bisect
 import itertools
 
-from typing import Type, Any
+import numpy as np
+
+from enum import Enum
+from typing import Type, Any, Tuple
 
 from video_dataset.video import Video
 from video_dataset.utils import better_listdir
 from video_dataset.annotations import Annotations
 
+class VideoShapeComponents(Enum):
+    TIME = 0
+    HEIGHT = 1
+    WIDTH = 2
+    CHANNELS = 3
+    
+DEFAULT_VIDEO_SHAPE = (VideoShapeComponents.TIME, VideoShapeComponents.HEIGHT, VideoShapeComponents.WIDTH, VideoShapeComponents.CHANNELS)
+    
 class VideoDataset():
     """
     A dataset class for loading and processing videos and their corresponding annotations.
@@ -70,6 +81,8 @@ class VideoDataset():
         # --- --- ---
         video_extension: str = 'mp4',
         annotations_extension: str = 'csv',
+        # --- --- ---
+        video_shape: Tuple[int, int, int, int] = DEFAULT_VIDEO_SHAPE
     ):
         """
         Note: the videos in the videos_dir and the annotations in the annotations_dir must have the same name, they can have different extensions of course.
@@ -92,6 +105,8 @@ class VideoDataset():
         self.annotations_processor_kwargs = annotations_processor_kwargs or {}
         
         self.ids_file = ids_file
+        
+        self.video_shape = video_shape
         
         self.__params_check()
         
@@ -145,6 +160,21 @@ class VideoDataset():
         if not isinstance(self.verbose, bool):
             raise ValueError("Verbose must be a boolean.")
         
+        if self.video_shape is None:
+            raise ValueError("Video shape must not be None.")
+            
+        if not isinstance(self.video_shape, tuple):
+            raise ValueError("Video shape must be a tuple.")
+        
+        if len(self.video_shape) != 4:
+            raise ValueError("Video shape must have exactly 4 components.")
+        
+        if not all([isinstance(component, VideoShapeComponents) for component in self.video_shape]):
+            raise ValueError("Video shape components must be of type VideoShapeComponents.")
+        
+        if len(set(self.video_shape)) != len(self.video_shape):
+            raise ValueError("Video shape components must be unique.")
+        
     def __prepare_videos_and_annotations(self):
         return \
             list(map(lambda id: self.video_processor(self.videos_dir, id, **self.video_processor_kwargs), self.ids)), \
@@ -166,8 +196,11 @@ class VideoDataset():
         starting_frame = starting_frame_number_in_video
         ending_frame = starting_frame_number_in_video + self.segment_size
         
-        frames = self.videos[video_index][starting_frame:ending_frame]
+        frames= self.videos[video_index][starting_frame:ending_frame]
         annotations = self.annotations[video_index][starting_frame:ending_frame]
+        
+        # NOTE: we expect the video_processor to return a numpy array of the frames in the DEFAULT_VIDEO_SHAPE format.
+        frames = frames.transpose(self.video_shape)
         
         if self.frames_transform is not None:
             frames = self.frames_transform(frames)

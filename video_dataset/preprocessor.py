@@ -29,15 +29,15 @@ def extract_frames_from_videos(videos_dir: str, output_dir: str, output_extensio
         
         if os.path.exists(output_video_dir):
             if verbose:
-                print(f"Frames for {video_name} already exist. Skipping extraction.")
+                print(f"[INFO]: frames for \"{video_name}\" already exist. skipping extraction.")
             continue
         
         os.makedirs(output_video_dir)
         
         if verbose:
-            print(f"Extracting frames from {video_name}...")
+            print(f"[INFO]: extracting frames from {video_name}...")
         
         os.system(f"ffmpeg -i {video} {output_video_dir}/img_%05d.{output_extension}")
         
         if verbose:
-            print(f"Frames from {video_name} extracted successfully.")
+            print(f"[INFO]: frames from {video_name} extracted successfully.")
