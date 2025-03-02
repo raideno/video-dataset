@@ -73,18 +73,28 @@ class VideoFromVideoFramesDirectory(Video):
         # NOTE: will be of shape (number of frames, height, width, channels)
         return np.array(frames)
     
-VIDEO_EXTENSION = "mp4"
-    
 class VideoFromVideoFile(Video):
-    # TODO: it should be able to support multiple video extensions by providing a function for the video_extension or a sort of global video reader by providing * & thus be able to read anything.
-    # NOTE: when setting it to * be carful if two videos with the same name but different format are available
-    def __init__(self, videos_dir_path, id, video_extension = VIDEO_EXTENSION):
+    SUPPORTED_VIDEO_EXTENSIONS = ["mp4", "avi", "mkv", "mov", "webm"]
+    
+    def __init__(self, videos_dir_path, id, video_extension=None):
         super().__init__(videos_dir_path, id)
         
         self.id = id
         self.videos_dir_path = videos_dir_path
-        self.video_extension = video_extension
+        self.video_extension = video_extension or VideoFromVideoFile.__is_video_file(self.videos_dir_path, self.id)
+
+        if not self.video_extension:
+            raise FileNotFoundError(f"No valid video file found for {id} in {videos_dir_path}")
+
+        self.video_path = os.path.join(self.videos_dir_path, f"{self.id}.{self.video_extension}")
         self.cached_number_of_frames = self.__cache_number_of_frames()
+        
+    @staticmethod
+    def __is_video_file(videos_dir_path, id):
+        for extension in VideoFromVideoFile.SUPPORTED_VIDEO_EXTENSIONS:
+            if os.path.exists(os.path.join(videos_dir_path, f"{id}.{extension}")):
+                return extension
+        return None
         
     def get_id(self):
         return self.id
