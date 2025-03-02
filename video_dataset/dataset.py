@@ -7,9 +7,9 @@ import itertools
 
 from typing import Type, Any
 
-from .video import Video
-from .utils import better_listdir
-from .annotations import Annotations
+from video_dataset.video import Video
+from video_dataset.utils import better_listdir
+from video_dataset.annotations import Annotations
 
 class VideoDataset():
     """

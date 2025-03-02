@@ -1,1 +1,1 @@
-from .dataset import VideoDataset
+from video_dataset.dataset import VideoDataset
