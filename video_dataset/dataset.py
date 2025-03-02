@@ -4,7 +4,7 @@ import itertools
 
 from enum import IntEnum
 from typing import Type, Any, Tuple, Dict, List, Optional, Callable
-from pydantic import BaseModel, Field, DirectoryPath, PositiveInt, field_validator
+from pydantic import BaseModel, Field, FilePath, DirectoryPath, PositiveInt, field_validator
 
 from video_dataset.video import Video
 from video_dataset.utils import better_listdir
@@ -32,7 +32,7 @@ class VideoDatasetConfig(BaseModel):
     
     video_processor_kwargs: Optional[Dict[str, Any]] = {}
     annotations_processor_kwargs: Optional[Dict[str, Any]] = {}
-    ids_file: Optional[List[str]] = None
+    ids_file: Optional[FilePath] = None
     frames_transform: Optional[Callable] = None
     annotations_transform: Optional[Callable] = None
 
@@ -58,12 +58,6 @@ class VideoDatasetConfig(BaseModel):
     def check_kwargs(cls, v):
         if v is not None and not isinstance(v, dict):
             raise ValueError("Processor kwargs must be a dictionary or None.")
-        return v
-
-    @field_validator("ids_file", mode="before")
-    def check_ids_file(cls, v):
-        if v is not None and not isinstance(v, list):
-            raise ValueError("IDs file must be a list or None.")
         return v
 
     @field_validator("frames_transform", "annotations_transform", mode="before")
