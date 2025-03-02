@@ -2,9 +2,11 @@
 name = "video-dataset"
 version = "0.1.0"
 description = "A pytorch compatible video dataset that is fully customizable."
-authors = ["raiden <nadirkichou@hotmail.fr>"]
+authors = [
+    {name = "raideno56",email = "nadirkichou@hotmail.fr"}
+]
 maintainers = [
-    "raiden <nadirkichou@hotmail.fr>",
+    {name = "raideno56",email = "nadirkichou@hotmail.fr"}
 ]
 homepage = "https://raideno.github.io/video-dataset/"
 documentation = "https://raideno.github.io/video-dataset/"
