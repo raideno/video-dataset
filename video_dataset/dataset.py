@@ -2,10 +2,9 @@ import os
 import bisect
 import itertools
 
-import numpy as np
-
 from enum import IntEnum
-from typing import Type, Any, Tuple
+from typing import Type, Any, Tuple, Dict, List, Optional, Callable
+from pydantic import BaseModel, Field, DirectoryPath, PositiveInt, field_validator
 
 from video_dataset.video import Video
 from video_dataset.utils import better_listdir
@@ -18,6 +17,60 @@ class VideoShapeComponents(IntEnum):
     CHANNELS = 3
     
 DEFAULT_VIDEO_SHAPE = (VideoShapeComponents.TIME, VideoShapeComponents.HEIGHT, VideoShapeComponents.WIDTH, VideoShapeComponents.CHANNELS)
+
+class VideoDatasetConfig(BaseModel):
+    annotations_dir: DirectoryPath
+    videos_dir: DirectoryPath
+    video_processor: Type[Video]
+    annotations_processor: Type[Annotations]
+    segment_size: PositiveInt
+    verbose: bool = True
+    video_extension: str = 'mp4'
+    annotations_extension: str = 'csv'
+    video_shape: Tuple[int, int, int, int] = Field(default=DEFAULT_VIDEO_SHAPE)
+    step: Optional[int] = 1
+    
+    video_processor_kwargs: Optional[Dict[str, Any]] = {}
+    annotations_processor_kwargs: Optional[Dict[str, Any]] = {}
+    ids_file: Optional[List[str]] = None
+    frames_transform: Optional[Callable] = None
+    annotations_transform: Optional[Callable] = None
+
+    @field_validator("video_processor")
+    def check_video_processor(cls, v):
+        if not issubclass(v, Video):
+            raise ValueError("Video processor must inherit from Video class.")
+        return v
+
+    @field_validator("annotations_processor")
+    def check_annotations_processor(cls, v):
+        if not issubclass(v, Annotations):
+            raise ValueError("Annotations processor must inherit from Annotations class.")
+        return v
+
+    @field_validator("video_shape")
+    def check_video_shape(cls, v):
+        if not isinstance(v, tuple) or len(v) != 4 or len(set(v)) != 4:
+            raise ValueError("Video shape must have exactly 4 unique components.")
+        return v
+
+    @field_validator("video_processor_kwargs", "annotations_processor_kwargs", mode="before")
+    def check_kwargs(cls, v):
+        if v is not None and not isinstance(v, dict):
+            raise ValueError("Processor kwargs must be a dictionary or None.")
+        return v
+
+    @field_validator("ids_file", mode="before")
+    def check_ids_file(cls, v):
+        if v is not None and not isinstance(v, list):
+            raise ValueError("IDs file must be a list or None.")
+        return v
+
+    @field_validator("frames_transform", "annotations_transform", mode="before")
+    def check_transform_callable(cls, v):
+        if v is not None and not callable(v):
+            raise ValueError("Transform must be callable or None.")
+        return v
     
 class VideoDataset():
     """
@@ -45,139 +98,26 @@ class VideoDataset():
         videos (List[Video]): List of processed video objects.
         annotations (List[Annotations]): List of processed annotation objects.
 
-    Methods:
-        __len__(): Returns the total number of video segments in the dataset.
-        __getitem__(virtual_video_index): Fetches a specific segment (video frames and annotations) by index.
-        __expand_ids(): Expands the provided video and annotation IDs to full file paths.
-        __segment_size_check(): Checks if the video segment size divides evenly into the total frames of each video.
-        __translate_virtual_video_index_to_video_index(virtual_video_index): Translates a virtual video index into a specific video index and frame number.
-
     Note:
         - The videos in the `videos_dir` and annotations in the `annotations_dir` must have the same base names (different extensions allowed).
         - The class supports segmentation of videos into smaller frame chunks to optimize training.
         - Custom formats can be supported by implementing corresponding processors for videos and annotations.
     """
-    # TODO: refactor the class into using kwargs rather than params just like this
-    def __init__(
-        self,
-        # --- --- ---
-        annotations_dir: str,
-        videos_dir: str,
-        # --- --- ---
-        video_processor: Type[Video],
-        annotations_processor: Type[Annotations],
-        # --- --- ---
-        segment_size: int,
-        # --- --- ---
-        video_processor_kwargs: dict[str, Any] = None,
-        annotations_processor_kwargs: dict[str, Any] = None,
-        # --- --- ---
-        ids_file: list[str] = None,
-        # --- --- ---
-        frames_transform = None,
-        annotations_transform = None,
-        # --- --- ---
-        verbose: bool = True,
-        # --- --- ---
-        video_extension: str = 'mp4',
-        annotations_extension: str = 'csv',
-        # --- --- ---
-        video_shape: Tuple[int, int, int, int] = DEFAULT_VIDEO_SHAPE,
-        # --- --- ---
-        step: int = None
-    ):
-        """
-        Note: the videos in the videos_dir and the annotations in the annotations_dir must have the same name, they can have different extensions of course.
-        """
-        self.annotations_dir = annotations_dir
-        self.videos_dir = videos_dir
-        self.segment_size = segment_size
-        self.frames_transform = frames_transform
-        self.annotations_transform = annotations_transform
+    def __init__(self, **kwargs):
+        configuration = VideoDatasetConfig(**kwargs)
         
-        self.video_processor = video_processor
-        self.annotations_processor = annotations_processor
-        
-        self.verbose = verbose
-        
-        self.video_extension = video_extension 
-        self.annotations_extension = annotations_extension
-        
-        self.video_processor_kwargs = video_processor_kwargs or {}
-        self.annotations_processor_kwargs = annotations_processor_kwargs or {}
-        
-        self.ids_file = ids_file
-        
-        self.video_shape = video_shape
-        
-        self.step = step
-        
-        self.__params_check()
-        
+        # self.__dict__.update(configuration.dict())
+        self.__dict__.update(configuration.model_dump())
+
         if self.ids_file is None:
             self.ids = list(map(lambda file_name: os.path.splitext(file_name)[0], better_listdir(self.videos_dir)))
         else:
             with open(self.ids_file, "r") as file:
                 self.ids = file.read().splitlines()
             
-        # self.__ids_check()
-        
         self.videos, self.annotations = self.__prepare_videos_and_annotations()
         
         self.__segment_size_check()
-        
-    # TODO: it should check the params rather than the self.*
-    def __params_check(self):
-        if not os.path.exists(self.annotations_dir):
-            raise ValueError(f"Annotations directory {self.annotations_dir} does not exist.")
-        
-        if not os.path.exists(self.videos_dir):
-            raise ValueError(f"Videos directory {self.videos_dir} does not exist.")
-        
-        if not isinstance(self.video_processor, type):
-            raise ValueError("Video processor must be a class.")
-        
-        if not isinstance(self.annotations_processor, type):
-            raise ValueError("Annotations processor must be a class.")
-        
-        if not issubclass(self.video_processor, Video):
-            raise ValueError("Video processor must inherit from the Video class.")
-        
-        if not issubclass(self.annotations_processor, Annotations):
-            raise ValueError("Annotations processor must inherit from the Annotations class.")
-        
-        if not isinstance(self.segment_size, int):
-            raise ValueError("Segment size must be an integer.")
-        
-        if self.segment_size <= 0:
-            raise ValueError("Segment size must be a positive integer.")
-        
-        if self.ids_file is not None and not os.path.exists(self.ids_file):
-            raise ValueError("ids_file does not exist.")
-        
-        if self.frames_transform is not None and not callable(self.frames_transform):
-            raise ValueError("Frames transform must be a callable function.")
-        
-        if self.annotations_transform is not None and not callable(self.annotations_transform):
-            raise ValueError("Annotations transform must be a callable function.")
-        
-        if not isinstance(self.verbose, bool):
-            raise ValueError("Verbose must be a boolean.")
-        
-        if self.video_shape is None:
-            raise ValueError("Video shape must not be None.")
-            
-        if not isinstance(self.video_shape, tuple):
-            raise ValueError("Video shape must be a tuple.")
-        
-        if len(self.video_shape) != 4:
-            raise ValueError("Video shape must have exactly 4 components.")
-        
-        if not all([isinstance(component, VideoShapeComponents) for component in self.video_shape]):
-            raise ValueError("Video shape components must be of type VideoShapeComponents.")
-        
-        if len(set(self.video_shape)) != len(self.video_shape):
-            raise ValueError("Video shape components must be unique.")
         
     def __prepare_videos_and_annotations(self):
         return \
@@ -217,13 +157,10 @@ class VideoDataset():
     def __translate_virtual_video_index_to_video_index(self, virtual_video_index):
         video_index = 0
         
-        # videos_cropped_frames_number = [len(video_frames_annotations) // self.segment_size for video_frames_annotations in self.annotations]
         videos_cropped_frames_number = [len(video) // self.segment_size for video in self.videos]
         
-        # cumulative_videos_cropped_frames_number = np.cumsum(videos_cropped_frames_number)
         cumulative_videos_cropped_frames_number = list(itertools.accumulate(videos_cropped_frames_number))
         
-        # video_index = np.searchsorted(cumulative_videos_cropped_frames_number, virtual_video_index, side='right')
         video_index = bisect.bisect_right(cumulative_videos_cropped_frames_number, virtual_video_index)
         
         if video_index >= len(videos_cropped_frames_number):
