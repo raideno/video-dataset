@@ -1,6 +1,6 @@
 [project]
 name = "video-dataset"
-version = "0.2.0"
+version = "0.2.1"
 description = "A pytorch compatible video dataset that is fully customizable."
 authors = [
     {name = "raideno56",email = "nadirkichou@hotmail.fr"}

@@ -1,6 +1,3 @@
-# TODO: add the possibility to have the videos in frame format or video format
-# TODO: add the possibility to support different annotations format using OOP, add the possibility for a custom file format.
-
 import os
 import bisect
 import itertools
@@ -136,14 +133,14 @@ class VideoDataset():
         if self.segment_size <= 0:
             raise ValueError("Segment size must be a positive integer.")
         
+        if self.ids_file is not None and not os.path.exists(self.ids_file):
+            raise ValueError("ids_file does not exist.")
+        
         if self.frames_transform is not None and not callable(self.frames_transform):
             raise ValueError("Frames transform must be a callable function.")
         
         if self.annotations_transform is not None and not callable(self.annotations_transform):
             raise ValueError("Annotations transform must be a callable function.")
-        
-        if self.ids_file is not None and not isinstance(self.ids_file, list):
-            raise ValueError("IDs must be a list.")
         
         if not isinstance(self.verbose, bool):
             raise ValueError("Verbose must be a boolean.")
@@ -158,7 +155,7 @@ class VideoDataset():
             remaining_segments = len(video) % self.segment_size
             if remaining_segments != 0:
                 if self.verbose:
-                    print(f"[warning]: {remaining_segments} frames will be lost, because video {index} has {len(len(video))} frames, which is not divisible by segment size {self.segment_size}.")
+                    print(f"[warning]: {remaining_segments} frames will be lost, because video {index} has {len(video)} frames, which is not divisible by segment size {self.segment_size}.")
 
     def __len__(self):
         return sum([len(video) // self.segment_size for video in self.videos])    
