@@ -28,12 +28,15 @@ class Video(ABC):
         """
         pass
 
+STARTING_INDEX = 1
+
 class VideoFromVideoFramesDirectory(Video):
-    def __init__(self, videos_dir_path, id):
+    def __init__(self, videos_dir_path, id, starting_index = STARTING_INDEX):
         super().__init__(videos_dir_path, id)
         
         self.id = id
         self.videos_dir_path = videos_dir_path
+        self.starting_index = starting_index
     
     def get_id(self):
         return self.id
@@ -53,7 +56,7 @@ class VideoFromVideoFramesDirectory(Video):
             raise TypeError("Index must be an integer or slice")
         
     def __get_frame(self, index: int):
-        image_path = os.path.join(self.videos_dir_path, self.id, f"img_{index:05d}.jpg")
+        image_path = os.path.join(self.videos_dir_path, self.id, f"img_{(index + self.starting_index):05d}.jpg")
         
         return Image.open(image_path).convert("RGB")
     
