@@ -32,11 +32,18 @@ jobs:
       - name: install-dependencies
         run: poetry install --no-interaction
 
-      # - name: set-version-from-tag
-      #   run: |
-      #     TAG_NAME="${GITHUB_REF#refs/tags/}"
-      #     VERSION="${TAG_NAME#v}"
-      #     poetry version "$VERSION"
+      - name: check-version-is-not-prerelease
+        run: |
+          # NOTE: get current version from poetry
+          VERSION=$(poetry version -s)
+
+          # NOTE: check if version contains pre-release indicators
+          if [[ $VERSION == *"dev"* || $VERSION == *"a"* || $VERSION == *"alpha"* || $VERSION == *"b"* || $VERSION == *"beta"* || $VERSION == *"rc"* || $VERSION == *"pre"* ]]; then
+            echo "[ERROR]: version $VERSION appears to be a pre-release version. Only stable versions should be tagged for release."
+            exit 1
+          else
+            echo "[INFO]: version $VERSION is a stable release version. Proceeding with publication."
+          fi
 
       - name: publish-to-pypi
         env:
