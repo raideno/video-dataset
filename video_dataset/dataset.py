@@ -37,7 +37,7 @@ class VideoDatasetConfig(BaseModel):
     frames_transform: Optional[Callable] = None
     annotations_transform: Optional[Callable] = None
     
-    padder: Type[Padder] = NoPadder()
+    padder: Optional[Type[Padder]] = None
 
     @field_validator("video_processor")
     def check_video_processor(cls, v):
@@ -128,11 +128,12 @@ class VideoDataset():
             list(map(lambda id: self.annotations_processor(self.annotations_dir, id, **self.annotations_processor_kwargs), self.ids))
         
     def __segment_size_check(self):
-        for index, video in enumerate(self.videos):
-            remaining_segments = len(video) % self.segment_size
-            if remaining_segments != 0:
-                if self.verbose:
-                    print(f"[warning]: {remaining_segments} frames will be lost, because video {index} has {len(video)} frames, which is not divisible by segment size {self.segment_size}.")
+        if self.padder is None:
+            for index, video in enumerate(self.videos):
+                remaining_segments = len(video) % self.segment_size
+                if remaining_segments != 0:
+                    if self.verbose:
+                        print(f"[warning]: {remaining_segments} frames will be lost, because video {index} has {len(video)} frames, which is not divisible by segment size {self.segment_size}. consider using a padder.")
 
     def __len__(self):
         return sum([len(video) // self.segment_size for video in self.videos])    

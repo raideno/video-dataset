@@ -14,13 +14,6 @@ class Padder(ABC):
     def __call__(self, frames: np.ndarray, annotations: List[Any], target_segment_size: int):
         pass
     
-class NoPadder(Padder):
-    def __init__(self):
-        pass
-    
-    def __call__(self, frames: np.ndarray, annotations: List[Any], target_segment_size: int):
-        return frames, annotations
-    
 class ValuePadder(Padder):
     def __init__(self, frames_padding_value: Any, annotations_padding_value: Any):
         self.frames_padding_value = frames_padding_value
