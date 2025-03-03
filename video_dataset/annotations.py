@@ -1,5 +1,7 @@
 import os
+import csv
 
+from typing import Union
 from abc import ABC, ABCMeta, abstractmethod
 
 class Annotations(ABC):
@@ -21,14 +23,14 @@ class Annotations(ABC):
         """
         pass
     
-PREFILL_VALUE = "nothing"
-MAX_OVERFLOW_VALUE = 100
+FALLBACK_ANNOTATION = "nothing"
+ALLOWED_INDEX_OVERFLOW = 100
     
 class AnnotationsFromFrameLevelTxtFileAnnotations(Annotations):
-    def __init__(self, annotations_dir_path, id, prefill_value = PREFILL_VALUE, max_overflow_value = MAX_OVERFLOW_VALUE):
+    def __init__(self, annotations_dir_path, id, fallback_annotation = FALLBACK_ANNOTATION, max_overflow_value = ALLOWED_INDEX_OVERFLOW):
         self.annotations_dir_path = annotations_dir_path
         self.id = id
-        self.prefill_value = prefill_value
+        self.fallback_annotation = fallback_annotation
         self.max_overflow_value = max_overflow_value
         
     def get_id(self):
@@ -56,7 +58,7 @@ class AnnotationsFromFrameLevelTxtFileAnnotations(Annotations):
             lines = f.readlines()
         
         if index >= len(lines):
-            return self.prefill_value
+            return self.fallback_annotation
             
         # each line is an annotation for a frame
         return lines[index]
@@ -70,8 +72,69 @@ class AnnotationsFromFrameLevelTxtFileAnnotations(Annotations):
         annotations = []
         for i in range(start, stop, step):
             if i >= len(lines):
-                annotations.append(self.prefill_value)
+                annotations.append(self.fallback_annotation)
             else:
                 annotations.append(lines[i])
         
         return annotations
+    
+DEFAULT_CSV_DELIMITER = ';'
+
+class AnnotationsFromSegmentLevelCsvFileAnnotations(Annotations):
+    def __init__(self, annotations_dir_path: str, id: str, fps: int, fallback_annotation=FALLBACK_ANNOTATION, max_overflow_value=ALLOWED_INDEX_OVERFLOW, delimiter=DEFAULT_CSV_DELIMITER):
+        self.annotations_dir_path = annotations_dir_path
+        self.id = id
+        self.fps = fps
+        self.fallback_annotation = fallback_annotation
+        self.max_overflow_value = max_overflow_value
+        self.delimiter = delimiter
+        self.annotations = self.__load_annotations()
+        
+    def __load_annotations(self):
+        """
+        Given a csv file with annotations for segments, load the annotations into a list of frame level annotations.
+        """
+        annotations = []
+        max_frame = 0
+        
+        with open(os.path.join(self.annotations_dir_path, f"{self.id}.csv"), newline='') as file:
+            csv_reader = csv.DictReader(file, delimiter=self.delimiter)
+            
+            for row in csv_reader:
+                start_frame = int(float(row['starting-timestamp']) * self.fps / 1000)
+                end_frame = int(float(row['ending-timestamp']) * self.fps / 1000)
+                
+                if end_frame > max_frame:
+                    max_frame = end_frame
+                
+                while len(annotations) < start_frame:
+                    annotations.append(self.fallback_annotation)
+                
+                annotations.extend([row['action']] * (end_frame - start_frame + 1))
+            
+            return annotations
+        
+    def get_id(self):
+        return self.id
+    
+    def __len__(self):
+        return len(self.annotations)
+    
+    def __getitem__(self, index: Union[int, slice]):
+        if isinstance(index, int):
+            if index < 0 or index >= len(self) + self.max_overflow_value:
+                raise IndexError("Index out of bounds")
+            return self.__get_annotation(index)
+        elif isinstance(index, slice):
+            start, stop, step = index.indices(len(self) + self.max_overflow_value)
+            return self.__get_annotations(start, stop, step)
+        else:
+            raise TypeError("Index must be an integer or slice")
+        
+    def __get_annotation(self, index: int):
+        if index >= len(self.annotations):
+            return self.fallback_annotation
+        return self.annotations[index]
+    
+    def __get_annotations(self, start: int, stop: int, step: int):
+        return [self.__get_annotation(i) for i in range(start, stop, step)]

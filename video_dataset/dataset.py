@@ -4,7 +4,7 @@ import itertools
 
 from enum import IntEnum
 from typing import Type, Any, Tuple, Dict, List, Optional, Callable
-from pydantic import BaseModel, Field, FilePath, DirectoryPath, PositiveInt, field_validator
+from pydantic import BaseModel, Field, FilePath, DirectoryPath, PositiveInt, NonNegativeInt, field_validator
 
 from video_dataset.video import Video
 from video_dataset.utils import better_listdir
@@ -18,6 +18,9 @@ class VideoShapeComponents(IntEnum):
     
 DEFAULT_VIDEO_SHAPE = (VideoShapeComponents.TIME, VideoShapeComponents.HEIGHT, VideoShapeComponents.WIDTH, VideoShapeComponents.CHANNELS)
 
+# TODO: make sure the step is a positive integer.
+# TODO: specify and make it code explicit (by raising an error) that we only support start, end slices with start being smaller than end.
+
 class VideoDatasetConfig(BaseModel):
     annotations_dir: DirectoryPath
     videos_dir: DirectoryPath
@@ -27,8 +30,8 @@ class VideoDatasetConfig(BaseModel):
     verbose: bool = True
     video_extension: str = 'mp4'
     annotations_extension: str = 'csv'
-    video_shape: Tuple[int, int, int, int] = Field(default=DEFAULT_VIDEO_SHAPE)
-    step: Optional[int] = 1
+    video_shape: Tuple[NonNegativeInt, NonNegativeInt, NonNegativeInt, NonNegativeInt] = Field(default=DEFAULT_VIDEO_SHAPE)
+    step: Optional[PositiveInt] = 1
     
     video_processor_kwargs: Optional[Dict[str, Any]] = {}
     annotations_processor_kwargs: Optional[Dict[str, Any]] = {}

@@ -7,12 +7,10 @@ from video_dataset.video import VideoFromVideoFramesDirectory
 from video_dataset.dataset import VideoDataset, DEFAULT_VIDEO_SHAPE
 from video_dataset.annotations import AnnotationsFromFrameLevelTxtFileAnnotations
  
-    
 def test_initialization(setup_small_test_data):
     dataset_configuration, _ = setup_small_test_data
 
     dataset = initialize_dataset_from_configuration(dataset_configuration=dataset_configuration, segment_size=12)
-
 
 def test_video_sample_retrieval(setup_small_test_data):
     dataset_configuration, _ = setup_small_test_data
