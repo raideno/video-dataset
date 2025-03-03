@@ -7,8 +7,8 @@ from typing import Type, Any, Tuple, Dict, List, Optional, Callable
 from pydantic import BaseModel, Field, FilePath, DirectoryPath, PositiveInt, NonNegativeInt, field_validator
 
 from video_dataset.video import Video
+from video_dataset.padder import Padder
 from video_dataset.utils import better_listdir
-from video_dataset.padder import Padder, NoPadder
 from video_dataset.annotations import Annotations
 
 class VideoShapeComponents(IntEnum):
@@ -37,7 +37,8 @@ class VideoDatasetConfig(BaseModel):
     frames_transform: Optional[Callable] = None
     annotations_transform: Optional[Callable] = None
     
-    padder: Optional[Type[Padder]] = None
+    # padder: Optional[Padder] = None
+    padder: Optional[Any] = None
 
     @field_validator("video_processor")
     def check_video_processor(cls, v):
@@ -69,11 +70,11 @@ class VideoDatasetConfig(BaseModel):
             raise ValueError("Transform must be callable or None.")
         return v
     
-    @field_validator("padder")
-    def check_padder(cls, v):
-        if v is not None and not isinstance(v, Padder):
-            raise ValueError("Padder must be an instance of a subclass of Padder.")
-        return v
+    # @field_validator("padder")
+    # def check_padder(cls, v):
+    #     if v is not None and not isinstance(v, Padder):
+    #         raise ValueError("Padder must be an instance of a subclass of Padder.")
+    #     return v
     
 class VideoDataset():
     """
