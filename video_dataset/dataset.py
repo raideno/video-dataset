@@ -37,8 +37,9 @@ class VideoDatasetConfig(BaseModel):
     frames_transform: Optional[Callable] = None
     annotations_transform: Optional[Callable] = None
     
-    # padder: Optional[Padder] = None
     padder: Optional[Any] = None
+    
+    overlap: Optional[NonNegativeInt] = 0
 
     @field_validator("video_processor")
     def check_video_processor(cls, v):
@@ -110,7 +111,6 @@ class VideoDataset():
     def __init__(self, **kwargs):
         configuration = VideoDatasetConfig(**kwargs)
         
-        # self.__dict__.update(configuration.dict())
         self.__dict__.update(configuration.model_dump())
 
         if self.ids_file is None:
@@ -137,7 +137,7 @@ class VideoDataset():
                         print(f"[warning]: {remaining_segments} frames will be lost, because video {index} has {len(video)} frames, which is not divisible by segment size {self.segment_size}. consider using a padder.")
 
     def __len__(self):
-        return sum([len(video) // self.segment_size for video in self.videos])    
+        return sum([(max(0, len(video) - self.overlap) // (self.segment_size - self.overlap)) for video in self.videos])
 
     def __getitem__(self, virtual_video_index):
         video_index, starting_frame_number_in_video = self.__translate_virtual_video_index_to_video_index(virtual_video_index)
@@ -176,6 +176,6 @@ class VideoDataset():
 
         previous_frames = 0 if video_index == 0 else cumulative_videos_cropped_frames_number[video_index - 1]
         segment_index_within_video = virtual_video_index - previous_frames
-        starting_frame_number_in_video = segment_index_within_video * self.segment_size
+        starting_frame_number_in_video = segment_index_within_video * (self.segment_size - self.overlap)
         
         return video_index, starting_frame_number_in_video
