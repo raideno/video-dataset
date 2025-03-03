@@ -152,7 +152,7 @@ class VideoDataset():
         frames = frames.transpose(self.video_shape)
         
         if self.padder is not None:
-            frames, annotations = self.padder(frames, annotations, self.segment_size)
+            frames, annotations = self.padder(frames, annotations,  self.segment_size // self.step)
         
         if self.frames_transform is not None:
             frames = self.frames_transform(frames)
