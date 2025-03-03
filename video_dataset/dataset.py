@@ -4,10 +4,11 @@ import itertools
 
 from enum import IntEnum
 from typing import Type, Any, Tuple, Dict, List, Optional, Callable
-from pydantic import BaseModel, Field, FilePath, DirectoryPath, PositiveInt, field_validator
+from pydantic import BaseModel, Field, FilePath, DirectoryPath, PositiveInt, NonNegativeInt, field_validator
 
 from video_dataset.video import Video
 from video_dataset.utils import better_listdir
+from video_dataset.padder import Padder, NoPadder
 from video_dataset.annotations import Annotations
 
 class VideoShapeComponents(IntEnum):
@@ -27,14 +28,16 @@ class VideoDatasetConfig(BaseModel):
     verbose: bool = True
     video_extension: str = 'mp4'
     annotations_extension: str = 'csv'
-    video_shape: Tuple[int, int, int, int] = Field(default=DEFAULT_VIDEO_SHAPE)
-    step: Optional[int] = 1
+    video_shape: Tuple[NonNegativeInt, NonNegativeInt, NonNegativeInt, NonNegativeInt] = Field(default=DEFAULT_VIDEO_SHAPE)
+    step: Optional[PositiveInt] = 1
     
     video_processor_kwargs: Optional[Dict[str, Any]] = {}
     annotations_processor_kwargs: Optional[Dict[str, Any]] = {}
     ids_file: Optional[FilePath] = None
     frames_transform: Optional[Callable] = None
     annotations_transform: Optional[Callable] = None
+    
+    padder: Type[Padder] = NoPadder()
 
     @field_validator("video_processor")
     def check_video_processor(cls, v):
@@ -64,6 +67,12 @@ class VideoDatasetConfig(BaseModel):
     def check_transform_callable(cls, v):
         if v is not None and not callable(v):
             raise ValueError("Transform must be callable or None.")
+        return v
+    
+    @field_validator("padder")
+    def check_padder(cls, v):
+        if v is not None and not isinstance(v, Padder):
+            raise ValueError("Padder must be an instance of a subclass of Padder.")
         return v
     
 class VideoDataset():
@@ -139,6 +148,9 @@ class VideoDataset():
         
         # NOTE: we expect the video_processor to return a numpy array of the frames in the DEFAULT_VIDEO_SHAPE format.
         frames = frames.transpose(self.video_shape)
+        
+        if self.padder is not None:
+            frames, annotations = self.padder(frames, annotations, self.segment_size)
         
         if self.frames_transform is not None:
             frames = self.frames_transform(frames)

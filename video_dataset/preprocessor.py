@@ -1,7 +1,5 @@
 import os
 
-# TODO: do an alternative that don't require the user to install ffmpeg, so either use something else or install it as a python library or idk.
-
 def extract_frames_from_videos(videos_dir: str, output_dir: str, output_extension: str = "jpg", verbose: bool = True):
     """
     Extract frames from all video files in the specified directory and save them as image files.
