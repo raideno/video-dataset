@@ -1,10 +1,9 @@
 import numpy as np
 import pytest
 
-from video_dataset.padder import NoPadder, ValuePadder, LastValuePadder
+from video_dataset.padder import  ValuePadder, LastValuePadder
 
 @pytest.mark.parametrize("padder_class,frames_padding_value,annotations_padding_value,expected_last_value", [
-    (NoPadder, None, None, None),
     (ValuePadder, 0, -1, 0),
     (LastValuePadder, None, None, None),
 ])
@@ -22,11 +21,7 @@ def test_padder(padder_class, frames_padding_value, annotations_padding_value, e
 
     padded_frames, padded_annotations = padder(frames, annotations, target_segment_size)
 
-    if padder_class == NoPadder:
-        assert np.array_equal(padded_frames[:original_segment_size], frames), "NoPadder modified original frames!"
-        assert padded_annotations[:original_segment_size] == annotations, "NoPadder modified original annotations!"
-    
-    elif padder_class == ValuePadder:
+    if padder_class == ValuePadder:
         assert np.all(padded_frames[original_segment_size:] == frames_padding_value), "ValuePadder frames padding incorrect!"
         assert padded_annotations[original_segment_size:] == [annotations_padding_value] * (target_segment_size - original_segment_size), "ValuePadder annotations padding incorrect!"
     

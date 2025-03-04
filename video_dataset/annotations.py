@@ -23,6 +23,17 @@ class Annotations(ABC):
         """
         pass
     
+class UndefinedAnnotationsException(Exception):
+    """
+    Raised when no valid annotations file is found for a given video ID.
+    """
+    
+    def __init__(self, message: str, id: str):
+        super().__init__(message)
+        
+        self.message = message
+        self.id = id
+    
 FALLBACK_ANNOTATION = "nothing"
 ALLOWED_INDEX_OVERFLOW = 100
     
@@ -32,6 +43,12 @@ class AnnotationsFromFrameLevelTxtFileAnnotations(Annotations):
         self.id = id
         self.fallback_annotation = fallback_annotation
         self.max_overflow_value = max_overflow_value
+        
+        if not self.__does_annotations_file_exists():
+            raise UndefinedAnnotationsException(f"No valid annotations file found for {id} in {annotations_dir_path}", self.id)
+        
+    def __does_annotations_file_exists(self):
+        return os.path.exists(os.path.join(self.annotations_dir_path, f"{self.id}.txt"))
         
     def get_id(self):
         return self.id
@@ -88,7 +105,14 @@ class AnnotationsFromSegmentLevelCsvFileAnnotations(Annotations):
         self.fallback_annotation = fallback_annotation
         self.max_overflow_value = max_overflow_value
         self.delimiter = delimiter
+        
+        if not self.__does_annotations_file_exists():
+            raise UndefinedAnnotationsException(f"No valid annotations file found for {id} in {annotations_dir_path}", self.id)
+        
         self.annotations = self.__load_annotations()
+        
+    def __does_annotations_file_exists(self):
+        return os.path.exists(os.path.join(self.annotations_dir_path, f"{self.id}.csv"))
         
     def __load_annotations(self):
         """

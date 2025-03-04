@@ -29,6 +29,17 @@ class Video(ABC):
         Note that even if an index is given the frames will be returned in a batch format (Number of frames, Height, Width, Channels).
         """
         pass
+    
+class UndefinedVideoException(Exception):
+    """
+    Raised when no valid video file is found for a given video ID.
+    """
+    
+    def __init__(self, message: str, id: str):
+        super().__init__(message)
+        
+        self.message = message
+        self.id = id
 
 STARTING_INDEX = 1
 
@@ -39,6 +50,12 @@ class VideoFromVideoFramesDirectory(Video):
         self.id = id
         self.videos_dir_path = videos_dir_path
         self.starting_index = starting_index
+        
+        if not self.__does_video_video_exists():
+            raise UndefinedVideoException(f"No valid video file found for {id} in {videos_dir_path}", self.id)
+        
+    def __does_video_video_exists(self):
+        return os.path.exists(os.path.join(self.videos_dir_path, self.id))
     
     def get_id(self):
         return self.id
@@ -84,7 +101,7 @@ class VideoFromVideoFile(Video):
         self.video_extension = video_extension or VideoFromVideoFile.__is_video_file(self.videos_dir_path, self.id)
 
         if not self.video_extension:
-            raise FileNotFoundError(f"No valid video file found for {id} in {videos_dir_path}")
+            raise UndefinedVideoException(f"No valid video file found for {id} in {videos_dir_path}", self.id)
 
         self.video_path = os.path.join(self.videos_dir_path, f"{self.id}.{self.video_extension}")
         self.cached_number_of_frames = self.__cache_number_of_frames()

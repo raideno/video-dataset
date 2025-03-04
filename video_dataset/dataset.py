@@ -6,10 +6,10 @@ from enum import IntEnum
 from typing import Type, Any, Tuple, Dict, List, Optional, Callable
 from pydantic import BaseModel, Field, FilePath, DirectoryPath, PositiveInt, NonNegativeInt, field_validator
 
-from video_dataset.video import Video
+from video_dataset.padder import Padder
 from video_dataset.utils import better_listdir
-from video_dataset.padder import Padder, NoPadder
-from video_dataset.annotations import Annotations
+from video_dataset.video import Video, UndefinedVideoException
+from video_dataset.annotations import Annotations, UndefinedAnnotationsException
 
 class VideoShapeComponents(IntEnum):
     TIME = 0
@@ -37,7 +37,11 @@ class VideoDatasetConfig(BaseModel):
     frames_transform: Optional[Callable] = None
     annotations_transform: Optional[Callable] = None
     
-    padder: Type[Padder] = NoPadder()
+    allow_undefined_annotations: bool = False
+    
+    padder: Optional[Any] = None
+    
+    overlap: Optional[NonNegativeInt] = 0
 
     @field_validator("video_processor")
     def check_video_processor(cls, v):
@@ -69,47 +73,16 @@ class VideoDatasetConfig(BaseModel):
             raise ValueError("Transform must be callable or None.")
         return v
     
-    @field_validator("padder")
-    def check_padder(cls, v):
-        if v is not None and not isinstance(v, Padder):
-            raise ValueError("Padder must be an instance of a subclass of Padder.")
-        return v
+    # @field_validator("padder")
+    # def check_padder(cls, v):
+    #     if v is not None and not isinstance(v, Padder):
+    #         raise ValueError("Padder must be an instance of a subclass of Padder.")
+    #     return v
     
 class VideoDataset():
-    """
-    A dataset class for loading and processing videos and their corresponding annotations.
-
-    The class allows for flexible video and annotation handling, including:
-    - Video and annotation files stored in separate directories.
-    - Videos processed in either frame format or video format.
-    - Support for custom annotations formats through object-oriented principles.
-    - The ability to apply transformations to both video frames and annotations.
-    - Custom segmentation of video frames into smaller segments of specified size.
-
-    Attributes:
-        annotations_dir (str): Path to the directory containing annotation files.
-        videos_dir (str): Path to the directory containing video files.
-        segment_size (int): The size of each segment (in frames) when splitting videos.
-        frames_transform (callable, optional): A transformation function to apply to video frames.
-        annotations_transform (callable, optional): A transformation function to apply to annotations.
-        ids (List[str], optional): A list of specific video/annotation IDs to load (if None, all are loaded).
-        verbose (bool): Whether to print detailed logs for operations (default is True).
-        video_processor (Type[Video]): A class implementing the video processing logic.
-        annotations_processor (Type[Annotations]): A class implementing the annotation processing logic.
-        videos_paths (List[str]): List of video file paths.
-        annotations_paths (List[str]): List of annotation file paths.
-        videos (List[Video]): List of processed video objects.
-        annotations (List[Annotations]): List of processed annotation objects.
-
-    Note:
-        - The videos in the `videos_dir` and annotations in the `annotations_dir` must have the same base names (different extensions allowed).
-        - The class supports segmentation of videos into smaller frame chunks to optimize training.
-        - Custom formats can be supported by implementing corresponding processors for videos and annotations.
-    """
     def __init__(self, **kwargs):
         configuration = VideoDatasetConfig(**kwargs)
         
-        # self.__dict__.update(configuration.dict())
         self.__dict__.update(configuration.model_dump())
 
         if self.ids_file is None:
@@ -123,42 +96,81 @@ class VideoDataset():
         self.__segment_size_check()
         
     def __prepare_videos_and_annotations(self):
-        return \
-            list(map(lambda id: self.video_processor(self.videos_dir, id, **self.video_processor_kwargs), self.ids)), \
-            list(map(lambda id: self.annotations_processor(self.annotations_dir, id, **self.annotations_processor_kwargs), self.ids))
+        videos = []
+        annotations = []
+        
+        for id in self.ids:
+            video = self.video_processor(self.videos_dir, id, **self.video_processor_kwargs)
+                
+            try:
+                annotation = self.annotations_processor(self.annotations_dir, id, **self.annotations_processor_kwargs)
+            except UndefinedAnnotationsException as exception:
+                if self.allow_undefined_annotations:
+                    if self.verbose:
+                        print(f"[warning]: {exception.message}")
+                    annotation = None
+                else:
+                    raise exception
+            
+            videos.append(video)
+            annotations.append(annotation)
+            
+        return videos, annotations
         
     def __segment_size_check(self):
-        for index, video in enumerate(self.videos):
-            remaining_segments = len(video) % self.segment_size
-            if remaining_segments != 0:
-                if self.verbose:
-                    print(f"[warning]: {remaining_segments} frames will be lost, because video {index} has {len(video)} frames, which is not divisible by segment size {self.segment_size}.")
+        if self.padder is None:
+            for index, video in enumerate(self.videos):
+                remaining_segments = len(video) % self.segment_size
+                if remaining_segments != 0:
+                    if self.verbose:
+                        print(f"[warning]: {remaining_segments} frames will be lost, because video {index} has {len(video)} frames, which is not divisible by segment size {self.segment_size}. consider using a padder.")
 
     def __len__(self):
-        return sum([len(video) // self.segment_size for video in self.videos])    
+        return sum([(max(0, len(video) - self.overlap) // (self.segment_size - self.overlap)) for video in self.videos])
 
     def __getitem__(self, virtual_video_index):
         video_index, starting_frame_number_in_video = self.__translate_virtual_video_index_to_video_index(virtual_video_index)
         
+        frames = self.__getitem_frames__(video_index, starting_frame_number_in_video)
+        annotations = self.__getitem_annotations__(video_index, starting_frame_number_in_video)
+    
+        return frames, annotations
+    
+    def __getitem_frames__(self, video_index, starting_frame_number_in_video):
         starting_frame = starting_frame_number_in_video
         ending_frame = starting_frame_number_in_video + self.segment_size
         
-        frames= self.videos[video_index][starting_frame:ending_frame:self.step]
-        annotations = self.annotations[video_index][starting_frame:ending_frame:self.step]
+        frames = self.videos[video_index][starting_frame:ending_frame:self.step]
         
         # NOTE: we expect the video_processor to return a numpy array of the frames in the DEFAULT_VIDEO_SHAPE format.
         frames = frames.transpose(self.video_shape)
         
         if self.padder is not None:
-            frames, annotations = self.padder(frames, annotations, self.segment_size)
+            frames, _ = self.padder(frames=frames, annotations=None,  target_segment_size=self.segment_size // self.step)
         
         if self.frames_transform is not None:
             frames = self.frames_transform(frames)
         
-        if self.annotations_transform is not None:
-            annotations = self.annotations_transform(annotations)
+        return frames
+    
+    def __getitem_annotations__(self, video_index, starting_frame_number_in_video):
+        starting_frame = starting_frame_number_in_video
+        ending_frame = starting_frame_number_in_video + self.segment_size
+        
+        video_annotations = self.annotations[video_index]
+        
+        if video_annotations is None and self.allow_undefined_annotations:
+            return None
+        else:
+            annotations = video_annotations[starting_frame:ending_frame:self.step]
             
-        return frames, annotations
+            if self.padder is not None:
+                _, annotations = self.padder(frames=None, annotations=annotations,  target_segment_size=self.segment_size // self.step)
+            
+            if self.annotations_transform is not None:
+                annotations = self.annotations_transform(annotations)
+                
+            return annotations
     
     def __translate_virtual_video_index_to_video_index(self, virtual_video_index):
         video_index = 0
@@ -174,6 +186,6 @@ class VideoDataset():
 
         previous_frames = 0 if video_index == 0 else cumulative_videos_cropped_frames_number[video_index - 1]
         segment_index_within_video = virtual_video_index - previous_frames
-        starting_frame_number_in_video = segment_index_within_video * self.segment_size
+        starting_frame_number_in_video = segment_index_within_video * (self.segment_size - self.overlap)
         
         return video_index, starting_frame_number_in_video
