@@ -29,7 +29,7 @@ class UndefinedAnnotationsException(Exception):
     """
     
     def __init__(self, message: str, id: str):
-        super().__init__(self.message)
+        super().__init__(message)
         
         self.message = message
         self.id = id
@@ -45,7 +45,7 @@ class AnnotationsFromFrameLevelTxtFileAnnotations(Annotations):
         self.max_overflow_value = max_overflow_value
         
         if not self.__does_annotations_file_exists():
-            raise UndefinedAnnotationsException(f"No valid annotations file found for {id} in {annotations_dir_path}")
+            raise UndefinedAnnotationsException(f"No valid annotations file found for {id} in {annotations_dir_path}", self.id)
         
     def __does_annotations_file_exists(self):
         return os.path.exists(os.path.join(self.annotations_dir_path, f"{self.id}.txt"))
@@ -107,7 +107,7 @@ class AnnotationsFromSegmentLevelCsvFileAnnotations(Annotations):
         self.delimiter = delimiter
         
         if not self.__does_annotations_file_exists():
-            raise UndefinedAnnotationsException(f"No valid annotations file found for {id} in {annotations_dir_path}")
+            raise UndefinedAnnotationsException(f"No valid annotations file found for {id} in {annotations_dir_path}", self.id)
         
         self.annotations = self.__load_annotations()
         
