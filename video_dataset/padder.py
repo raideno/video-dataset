@@ -11,7 +11,7 @@ class Padder(ABC):
         pass
     
     @abstractmethod
-    def __call__(self, frames: np.ndarray, annotations: List[Any], target_segment_size: int):
+    def __call__(self, frames: np.ndarray = None, annotations: List[Any] = None, target_segment_size: int = None):
         pass
     
 class ValuePadder(Padder):
@@ -19,9 +19,11 @@ class ValuePadder(Padder):
         self.frames_padding_value = frames_padding_value
         self.annotations_padding_value = annotations_padding_value
         
-    def __call__(self, frames: np.ndarray, annotations: List[Any], target_segment_size: int):
-        frames_padded = self.__pad_frames(frames, target_segment_size)
-        annotations_padded = self.__pad_annotations(annotations, target_segment_size)
+    def __call__(self, frames: np.ndarray = None, annotations: List[Any] = None, target_segment_size: int = None):
+        assert target_segment_size != None
+        
+        frames_padded = self.__pad_frames(frames, target_segment_size) if frames is not None else None
+        annotations_padded = self.__pad_annotations(annotations, target_segment_size) if annotations is not None else None
         
         return frames_padded, annotations_padded
     
@@ -41,9 +43,11 @@ class LastValuePadder(Padder):
     def __init__(self):
         pass
     
-    def __call__(self, frames: np.ndarray, annotations: List[Any], target_segment_size: int):
-        frames_padded = self.__pad_frames(frames, target_segment_size)
-        annotations_padded = self.__pad_annotations(annotations, target_segment_size)
+    def __call__(self, frames: np.ndarray = None, annotations: List[Any] = None, target_segment_size: int = None):
+        assert target_segment_size != None
+        
+        frames_padded = self.__pad_frames(frames, target_segment_size) if frames is not None else None
+        annotations_padded = self.__pad_annotations(annotations, target_segment_size) if annotations is not None else None
         
         return frames_padded, annotations_padded
     
