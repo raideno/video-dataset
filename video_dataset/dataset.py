@@ -54,14 +54,14 @@ class VideoDatasetConfiguration(BaseModel):
         load_videos_set = 'load_videos' in values
         
         # NOTE: if segment_size is -1 and loading flags are not explicitly set, set them to False just to prevent unnecessary unwanted loading times.
-        if segment_size == -1 and not load_videos_set:
+        if segment_size == VideoDataset.FULL_VIDEO_SEGMENT and not load_videos_set:
             values['load_videos'] = False
         
         return values
 
     @field_validator("segment_size")
     def check_segment_size(cls, v):
-        if v < -1:
+        if v < VideoDataset.FULL_VIDEO_SEGMENT:
             raise ValueError("segment_size must be bigger or equal to -1.")
         return v
 
@@ -102,6 +102,8 @@ class VideoDatasetConfiguration(BaseModel):
     #     return v
     
 class VideoDataset():
+    FULL_VIDEO_SEGMENT = -1
+    
     def __init__(self, **kwargs):
         configuration = VideoDatasetConfiguration(**kwargs)
         
@@ -116,12 +118,6 @@ class VideoDataset():
         self.videos, self.annotations = self.__prepare_videos_and_annotations()
         
         self.__segment_size_check()
-        
-    def set_load_videos(self, load_videos: bool):
-        self.load_videos = load_videos
-        
-    def set_load_annotations(self, load_annotations: bool):
-        self.load_annotations = load_annotations
         
     def __prepare_videos_and_annotations(self):
         videos = []
@@ -146,7 +142,7 @@ class VideoDataset():
         return videos, annotations
         
     def __segment_size_check(self):
-        if self.padder is None and self.segment_size != -1:
+        if self.padder is None and self.segment_size != VideoDataset.FULL_VIDEO_SEGMENT:
             for index, video in enumerate(self.videos):
                 remaining_segments = len(video) % self.segment_size
                 if remaining_segments != 0:
@@ -154,13 +150,13 @@ class VideoDataset():
                         print(f"[warning]: {remaining_segments} frames will be lost, because video {index} has {len(video)} frames, which is not divisible by segment size {self.segment_size}. consider using a padder.")
 
     def __len__(self):
-        if self.segment_size == -1:
+        if self.segment_size == VideoDataset.FULL_VIDEO_SEGMENT:
             return len(self.videos)
         else:
             return sum([(max(0, len(video) - self.overlap) // (self.segment_size - self.overlap)) for video in self.videos])
         
     def __getitem__(self, virtual_video_index):
-        if self.segment_size == -1:
+        if self.segment_size == VideoDataset.FULL_VIDEO_SEGMENT:
             video_index = virtual_video_index
             
             frames = self.__getitem_frames__(video_index, 0) if self.load_videos else None
@@ -176,7 +172,7 @@ class VideoDataset():
             return frames, annotations
     
     def __getitem_frames__(self, video_index, starting_frame_number_in_video):
-        if self.segment_size == -1:
+        if self.segment_size == VideoDataset.FULL_VIDEO_SEGMENT:
             frames = self.videos[video_index][0:]
             
             frames = frames.transpose(self.video_shape)
@@ -203,7 +199,7 @@ class VideoDataset():
             return frames
     
     def __getitem_annotations__(self, video_index, starting_frame_number_in_video):
-        if self.segment_size == -1:
+        if self.segment_size == VideoDataset.FULL_VIDEO_SEGMENT:
             video_annotations = self.annotations[video_index]
             
             if video_annotations is None and self.allow_undefined_annotations:
