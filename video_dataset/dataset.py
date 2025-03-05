@@ -4,7 +4,7 @@ import itertools
 
 from enum import IntEnum
 from typing import Type, Any, Tuple, Dict, List, Optional, Callable
-from pydantic import BaseModel, Field, FilePath, DirectoryPath, PositiveInt, NonNegativeInt, field_validator
+from pydantic import BaseModel, Field, FilePath, DirectoryPath, PositiveInt, NonNegativeInt, field_validator, model_validator
 
 from video_dataset.padder import Padder
 from video_dataset.utils import better_listdir
@@ -19,7 +19,7 @@ class VideoShapeComponents(IntEnum):
     
 DEFAULT_VIDEO_SHAPE = (VideoShapeComponents.TIME, VideoShapeComponents.HEIGHT, VideoShapeComponents.WIDTH, VideoShapeComponents.CHANNELS)
 
-class VideoDatasetConfig(BaseModel):
+class VideoDatasetConfiguration(BaseModel):
     annotations_dir: DirectoryPath
     videos_dir: DirectoryPath
     video_processor: Type[Video]
@@ -42,6 +42,22 @@ class VideoDatasetConfig(BaseModel):
     padder: Optional[Any] = None
     
     overlap: Optional[NonNegativeInt] = 0
+    
+    load_videos: Optional[bool] = True
+    load_annotations: Optional[bool] = True
+
+    @model_validator(mode='before')
+    @classmethod
+    def adjust_loading_videos_on_segment_size(cls, values):
+        segment_size = values.get('segment_size')
+        
+        load_videos_set = 'load_videos' in values
+        
+        # NOTE: if segment_size is -1 and loading flags are not explicitly set, set them to False just to prevent unnecessary unwanted loading times.
+        if segment_size == -1 and not load_videos_set:
+            values['load_videos'] = False
+        
+        return values
 
     @field_validator("segment_size")
     def check_segment_size(cls, v):
@@ -87,7 +103,7 @@ class VideoDatasetConfig(BaseModel):
     
 class VideoDataset():
     def __init__(self, **kwargs):
-        configuration = VideoDatasetConfig(**kwargs)
+        configuration = VideoDatasetConfiguration(**kwargs)
         
         self.__dict__.update(configuration.model_dump())
 
@@ -97,9 +113,6 @@ class VideoDataset():
             with open(self.ids_file, "r") as file:
                 self.ids = file.read().splitlines()
                 
-        self.load_videos = True
-        self.load_annotations = True
-            
         self.videos, self.annotations = self.__prepare_videos_and_annotations()
         
         self.__segment_size_check()
