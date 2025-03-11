@@ -50,7 +50,7 @@ def test_csv_annotations(setup_csv_annotations_dataset):
     )
     
     for i in range(len(dataset)):
-        video, annotations, _ = dataset[i]
+        video, annotations = dataset[i]
         
         print(video.shape)
         
@@ -74,7 +74,7 @@ def test_txt_annotations(setup_txt_annotations_dataset):
     )
     
     for i in range(len(dataset)):
-        video, annotations, _ = dataset[i]
+        video, annotations = dataset[i]
         
         assert video.shape == (segment_size, DEFAULT_VIDEO_HEIGHT, DEFAULT_VIDEO_WIDTH, DEFAULT_VIDEO_NUMBER_OF_CHANNELS)
         assert len(annotations) == segment_size

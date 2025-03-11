@@ -34,8 +34,10 @@ class VideoDatasetConfiguration(BaseModel):
     video_processor_kwargs: Optional[Dict[str, Any]] = {}
     annotations_processor_kwargs: Optional[Dict[str, Any]] = {}
     ids_file: Optional[FilePath] = None
+    
     frames_transform: Optional[Callable] = None
     annotations_transform: Optional[Callable] = None
+    return_transform: Optional[Callable] = None
     
     allow_undefined_annotations: bool = False
     
@@ -162,14 +164,20 @@ class VideoDataset():
             frames = self.__getitem_frames__(video_index, 0) if self.load_videos else None
             annotations = self.__getitem_annotations__(video_index, 0) if self.load_annotations else None
             
-            return frames, annotations, (video_index, self.videos[video_index].get_id(), 0)
+            if self.return_transform is not None:
+                return self.return_transform({ "frames": frames, "annotations": annotations, "video_index": video_index, "video_id": self.videos[video_index].get_id(), "starting_frame_number_in_video": 0 })
+            else:
+                return frames, annotations
         else:
             video_index, starting_frame_number_in_video = self.__translate_virtual_video_index_to_video_index(virtual_video_index)
             
             frames = self.__getitem_frames__(video_index, starting_frame_number_in_video) if self.load_videos else None
             annotations = self.__getitem_annotations__(video_index, starting_frame_number_in_video) if self.load_annotations else None
         
-            return frames, annotations, (video_index, self.videos[video_index].get_id(), starting_frame_number_in_video)
+            if self.return_transform is not None:
+                return self.return_transform({ "frames": frames, "annotations": annotations, "video_index": video_index, "video_id": self.videos[video_index].get_id(), "starting_frame_number_in_video": starting_frame_number_in_video })
+            else:
+                return frames, annotations
     
     def __getitem_frames__(self, video_index, starting_frame_number_in_video):
         if self.segment_size == VideoDataset.FULL_VIDEO_SEGMENT:

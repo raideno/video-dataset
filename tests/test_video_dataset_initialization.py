@@ -19,7 +19,7 @@ def test_video_sample_retrieval(setup_small_test_data):
     
     dataset = initialize_dataset_from_configuration(dataset_configuration=dataset_configuration, segment_size=segment_size)
     
-    frames, labels, _ = dataset[10]
+    frames, labels = dataset[10]
     
     assert frames.shape == (segment_size, DEFAULT_VIDEO_HEIGHT, DEFAULT_VIDEO_WIDTH, DEFAULT_VIDEO_NUMBER_OF_CHANNELS)
     assert len(labels) == segment_size
