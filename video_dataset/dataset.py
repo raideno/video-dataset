@@ -2,6 +2,8 @@ import os
 import bisect
 import itertools
 
+import numpy as np
+
 from enum import IntEnum
 from typing import Type, Any, Tuple, Dict, List, Optional, Callable
 from pydantic import BaseModel, Field, FilePath, DirectoryPath, PositiveInt, NonNegativeInt, field_validator, model_validator
@@ -120,6 +122,24 @@ class VideoDataset():
         self.videos, self.annotations = self.__prepare_videos_and_annotations()
         
         self.__segment_size_check()
+        
+    @staticmethod
+    def compute_step(segment_size, number_of_frames):
+        """
+        Compute the step size required to divide a segment into a specified number of frames.
+
+        Args:
+            segment_size (int): The total size of the segment.
+            number_of_frames (int): The desired number of frames within the segment.
+
+        Returns:
+            int: The computed step size, rounded up to ensure the required number of frames is met.
+
+        Example:
+            >>> compute_step(segment_size=32, number_of_frames=8)
+            4
+        """
+        return int(np.ceil(segment_size / number_of_frames))
         
     def __prepare_videos_and_annotations(self):
         videos = []
