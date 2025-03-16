@@ -149,7 +149,7 @@ class VideoDataset():
                 remaining_segments = len(video) % self.segment_size
                 if remaining_segments != 0:
                     if self.verbose:
-                        print(f"[warning]: {remaining_segments} frames will be lost, because video {index} has {len(video)} frames, which is not divisible by segment size {self.segment_size}. consider using a padder.")
+                        print(f"[warning]: {remaining_segments} frames will be lost, because video {video.get_id()}@{index} has {len(video)} frames, which is not divisible by segment size {self.segment_size}. consider using a padder.")
 
     def __len__(self):
         if self.segment_size == VideoDataset.FULL_VIDEO_SEGMENT:
