@@ -165,7 +165,14 @@ class VideoDataset():
             annotations = self.__getitem_annotations__(video_index, 0) if self.load_annotations else None
             
             if self.return_transform is not None:
-                return self.return_transform({ "frames": frames, "annotations": annotations, "video_index": video_index, "video_id": self.videos[video_index].get_id(), "starting_frame_number_in_video": 0 })
+                return self.return_transform({ 
+                    "frames": frames,
+                    "annotations": annotations,
+                    "video_index": video_index,
+                    "video_id": self.videos[video_index].get_id(),
+                    "starting_frame_number_in_video": 0,
+                    "segment_index": 0 
+                })
             else:
                 return frames, annotations
         else:
@@ -174,8 +181,17 @@ class VideoDataset():
             frames = self.__getitem_frames__(video_index, starting_frame_number_in_video) if self.load_videos else None
             annotations = self.__getitem_annotations__(video_index, starting_frame_number_in_video) if self.load_annotations else None
         
+            segment_index = starting_frame_number_in_video // (self.segment_size - self.overlap)
+
             if self.return_transform is not None:
-                return self.return_transform({ "frames": frames, "annotations": annotations, "video_index": video_index, "video_id": self.videos[video_index].get_id(), "starting_frame_number_in_video": starting_frame_number_in_video })
+                return self.return_transform({
+                    "frames": frames,
+                    "annotations": annotations,
+                    "video_index": video_index,
+                    "video_id": self.videos[video_index].get_id(),
+                    "starting_frame_number_in_video": starting_frame_number_in_video,
+                    "segment_index": segment_index
+                })
             else:
                 return frames, annotations
     
