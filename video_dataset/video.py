@@ -118,9 +118,10 @@ class VideoFromVideoFile(Video):
     
     def __cache_number_of_frames(self):
         """Opens video temporarily to get frame count."""
-        video = cv2.VideoCapture(os.path.join(self.videos_dir_path, f"{self.id}.{self.video_extension}"))
+        video = cv2.VideoCapture(os.path.join(self.video_path))
         num_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
         video.release()
+        
         return num_frames
 
     def __len__(self):
@@ -139,13 +140,16 @@ class VideoFromVideoFile(Video):
 
     def __get_frame(self, index: int):
         """Opens video, retrieves a single frame, and immediately closes it."""
-        with cv2.VideoCapture(self.videos_dir_path) as video:
-            video.set(cv2.CAP_PROP_POS_FRAMES, index)
-            # NOTE: return in the shape (height, width, channels)
-            ret, frame = video.read()
-        
+        video = cv2.VideoCapture(self.video_path)
+            
+        video.set(cv2.CAP_PROP_POS_FRAMES, index)
+        # NOTE: return in the shape (height, width, channels)
+        ret, frame = video.read()
+    
         if not ret:
             raise Exception(f"Could not read frame at index {index}")
+        
+        video.release()
         
         return np.array(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
@@ -153,15 +157,18 @@ class VideoFromVideoFile(Video):
         """Reads multiple frames in a single open-close cycle."""
         frames = []
         
-        with cv2.VideoCapture(self.videos_dir_path) as video:
-            video.set(cv2.CAP_PROP_POS_FRAMES, start)
+        video = cv2.VideoCapture(self.video_path)
+        
+        video.set(cv2.CAP_PROP_POS_FRAMES, start)
+        
+        for i in range(start, stop, step):
+            # NOTE: return in the shape (height, width, channels)
+            ret, frame = video.read()
+            if not ret:
+                break
+            frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             
-            for i in range(start, stop, step):
-                # NOTE: return in the shape (height, width, channels)
-                ret, frame = video.read()
-                if not ret:
-                    break
-                frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        video.release()
         
         # NOTE: will be of shape (number of frames, height, width, channels)
         return np.array(frames)
