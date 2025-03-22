@@ -172,3 +172,16 @@ class VideoFromVideoFile(Video):
         
         # NOTE: will be of shape (number of frames, height, width, channels)
         return np.array(frames)
+    
+def read_video(video_path: str) -> VideoFromVideoFile:
+    video_dir_path = os.path.dirname(video_path)
+    video_name, video_extension = os.path.splitext(os.path.basename(video_path))
+    
+    # NOTE: remove the dot from the extension
+    video_extension = video_extension[1:]
+    
+    return VideoFromVideoFile(
+        videos_dir_path=video_dir_path,
+        id=video_name,
+        video_extension=video_extension
+    )
